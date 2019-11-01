@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 import cvxpy as cp
 import randomSet as util
 
-def plotPoints(set1, set2, w, b):
-    x1, y1 = set1.T
-    x2, y2 = set2.T
-    plt.plot(x1, y1, '.', color='b')
-    plt.plot(x2, y2, '.', color='r')
+def plotPoints(classA, classB, w, b):
+    x1, y1 = classA.T
+    x2, y2 = classB.T
+    plt.plot(x1, y1, '.', color='b', label='Class A')
+    plt.plot(x2, y2, '.', color='r', label='Class B')
     plt.axis('equal')
     print(w," |||| ", b)
 
@@ -21,22 +21,22 @@ def plotHyperplane(w,b,X,Y):
         wTop = wTop[0]
         wBottom = w[len(w)-1]
         y_points.append((-1 * b - sum(wTop*x))/wBottom)
-    plt.plot(x_points,y_points, color='purple')
+    plt.plot(x_points,y_points, color='purple', label='Classifier')
 
     # Soft Margin
+    x_soft_upper = []
+    y_soft_upper = []
+    x_soft_lower = []
+    y_soft_lower = []
     for wVal in w:
-        x_soft_upper = []
-        y_soft_upper = []
-        x_soft_lower = []
-        y_soft_lower = []
         softMargin = (1/wVal)
         for i,x in enumerate(x_points):
             x_soft_upper.append(x + softMargin)
             y_soft_upper.append(y_points[i] + softMargin)
             x_soft_lower.append(x - softMargin)
             y_soft_lower.append(y_points[i] - softMargin)
-        plt.plot(x_soft_upper,y_soft_upper, color='grey')
-        plt.plot(x_soft_lower,y_soft_lower, color='grey')
+    plt.plot(x_soft_upper,y_soft_upper, linestyle=':', color='grey', label='Margin')
+    plt.plot(x_soft_lower,y_soft_lower, linestyle=':', color='grey')
 
 def plotSupportVectors(X, Y, constraints):
     supportVectors = []
@@ -45,7 +45,7 @@ def plotSupportVectors(X, Y, constraints):
             if math.isclose(dual,0, abs_tol=0.1): # TODO Fix support vector tolerance
                 supportVectors.append((X[i],Y[i]))
     x_sv, y_sv = numpy.asarray(supportVectors).T
-    plt.plot(x_sv, y_sv, '+', color='cyan')
+    plt.plot(x_sv, y_sv, '+', color='cyan', label='Support Vector')
     return len(supportVectors)
 
 def optimization(X, Y, wDim):
@@ -76,4 +76,7 @@ if __name__ == '__main__':
     plotPoints(randomSet1, randomSet2, optimals['w'], optimals['b'])
     plotHyperplane(optimals['w'], optimals['b'], X, Y)
     plotSupportVectors(X,Y,optimals['constraints'])
+    plt.title('Support Vector Machine')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+    plt.tight_layout(pad=1)
     plt.show()
