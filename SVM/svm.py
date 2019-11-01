@@ -5,8 +5,9 @@ import cvxpy as cp
 import randomSet as util
 
 class SVM():
-    def __init__(self, classA=False, classB=False, *, C=1, runNow=False, printReport=False):
+    def __init__(self, classA=False, classB=False, *, C=1, plotNow=False, printReport=False):
         self.optimized = False
+        self.plotPrepared = False
         self.constantC = C
         self.supportVectors = []
         self.margins = []
@@ -21,32 +22,37 @@ class SVM():
 
         self.dimensions = len(self.classA[len(self.classA)-1])
 
-        if runNow:
+        if plotNow or printReport:
             self.optimize()
-            self.plot()
+            if printReport:
+                self.preparePlot()
+                print(self)
+            if plotNow:
+                self.plot()
 
     def optimize(self):
         self.optimals = self.optimization()
         self.calculateSupportVectors()
         self.optimized = True
-    
+
     def plot(self):
-        if self.optimized:
+        if not self.plotPrepared:
+            self.preparePlot()
+        plt.show()
+    
+    def preparePlot(self):
+        if self.optimized and not self.plotPrepared:
             self.plotPoints()
             self.plotHyperplane()
             self.plotSupportVectors()
 
-            # Print Report
-            if self.printReport:
-                print(self)
-
-            # Display Plot
+            # Setup Plot
             plt.title('Support Vector Machine')
             plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
             plt.tight_layout(pad=2)
-            plt.show()
         else:
             print("SVM must be optimized to plot")
+        self.plotPrepared = True
 
     def plotPoints(self):
         x1, y1 = self.classA.T
@@ -144,6 +150,3 @@ class SVM():
                 output += str(margin[0])
                 output += ' '
         return output
-
-if __name__ == '__main__':
-    SVM(C=1, runNow=True, printReport=True)
