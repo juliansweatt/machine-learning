@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import cvxpy as cp
 import randomSet as util
 
+CONSTANT_C = 1
+
 def plotPoints(classA, classB, w, b):
     x1, y1 = classA.T
     x2, y2 = classB.T
@@ -30,6 +32,7 @@ def plotHyperplane(w,b,X,Y):
     y_soft_lower = []
     for wVal in w:
         softMargin = (1/wVal)
+        print("Margin:", softMargin)
         for i,x in enumerate(x_points):
             x_soft_upper.append(x + softMargin)
             y_soft_upper.append(y_points[i] + softMargin)
@@ -46,6 +49,7 @@ def plotSupportVectors(X, Y, constraints):
                 supportVectors.append((X[i],Y[i]))
     x_sv, y_sv = numpy.asarray(supportVectors).T
     plt.plot(x_sv, y_sv, '+', color='cyan', label='Support Vector')
+    print("Support Vectors:",supportVectors)
     return len(supportVectors)
 
 def optimization(X, Y, wDim):
@@ -55,7 +59,7 @@ def optimization(X, Y, wDim):
     epsi = cp.Variable((len(X),1))
     half = cp.Constant(1/2)
     reg = cp.square(cp.norm(w,2))
-    c = cp.Constant(1)
+    c = cp.Constant(CONSTANT_C)
     loss = cp.sum(cp.pos(epsi))
 
     # Setup Optimization Constraints
@@ -70,13 +74,20 @@ def optimization(X, Y, wDim):
     # Return Optimal w and b Values
     return {'w': w.value, 'b': b.value, 'constraints': constraints}
 
+def leaveOneOutError(numSupportVectors, numVectors):
+    return numSupportVectors/numVectors
+
 if __name__ == '__main__':
     randomSet1, randomSet2, X, Y = util.myPoints()
     optimals = optimization(X,Y, 2)
     plotPoints(randomSet1, randomSet2, optimals['w'], optimals['b'])
     plotHyperplane(optimals['w'], optimals['b'], X, Y)
-    plotSupportVectors(X,Y,optimals['constraints'])
+    numSupportVectors = plotSupportVectors(X,Y,optimals['constraints'])
+    print('Leave One Out Error:', leaveOneOutError(numSupportVectors, len(X)))
+    print("Constant C", CONSTANT_C)
+
+    # Display Plot
     plt.title('Support Vector Machine')
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
-    plt.tight_layout(pad=1)
+    plt.tight_layout(pad=2)
     plt.show()
