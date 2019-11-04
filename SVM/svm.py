@@ -6,22 +6,27 @@ import randomSet as util
 
 class SVM():
     def __init__(self, classA=False, classB=False, *, C=1, plotNow=False, printReport=False):
+        # Initialize Variables and Parameters
         self.optimized = False
         self.plotPrepared = False
         self.constantC = C
         self.supportVectors = []
         self.margins = []
         self.printReport = printReport
+
+        # Generate Random Data or Accept Provided Sets
         if classA and classB:
             self.classA = classA
             self.classB = classB
-            fullSet = util.combineSets(self.classA, self.classB)
-            self.fullSetX, self.fullSetY = fullSet.T
+            self.fullSet = util.combineSets(self.classA, self.classB)
+            self.fullSetX, self.fullSetY = self.fullSet.T
         else:
-            self.classA, self.classB, self.fullSetX, self.fullSetY = util.myPoints()
+            self.classA, self.classB, self.fullSetX, self.fullSetY, self.fullSet, self.labels = util.myPoints()
 
+        # Dimension of Class Data
         self.dimensions = len(self.classA[len(self.classA)-1])
 
+        # Optimize and Plot or Report if Needed
         if plotNow or printReport:
             self.optimize()
             if printReport:
@@ -32,7 +37,7 @@ class SVM():
 
     def optimize(self):
         self.optimals = self.optimization()
-        self.calculateSupportVectors()
+        # self.calculateSupportVectors()
         self.optimized = True
 
     def plot(self):
@@ -42,6 +47,7 @@ class SVM():
     
     def preparePlot(self):
         if self.optimized and not self.plotPrepared:
+            # Plot Each Portion
             self.plotPoints()
             self.plotHyperplane()
             self.plotSupportVectors()
@@ -66,7 +72,7 @@ class SVM():
         b = self.optimals['b']
 
         # Hyperplane 
-        x_points = numpy.linspace(int(min(self.fullSetX)), int(max(self.fullSetX)), len(self.fullSetX))
+        x_points = numpy.linspace(int(min(self.fullSetX)), int(max(self.fullSetX)), len(self.fullSet))
         y_points =[]
         for x in x_points:
             wTop = w[:(len(w)-1)]
@@ -75,28 +81,34 @@ class SVM():
             y_points.append((-1 * b - sum(wTop*x))/wBottom)
         plt.plot(x_points,y_points, color='purple', label='Classifier')
 
-        # Soft Margin
-        x_soft_upper = []
-        y_soft_upper = []
-        x_soft_lower = []
-        y_soft_lower = []
-        for wVal in w:
+        # Soft Margins
+        soft_upper = []
+        soft_lower = []
+        for wNum, wVal in enumerate(w):
             softMargin = (1/wVal)
             self.margins.append(softMargin)
+            upper_bounds = []
+            lower_bounds = []
             for i,x in enumerate(x_points):
-                x_soft_upper.append(x + softMargin)
-                y_soft_upper.append(y_points[i] + softMargin)
-                x_soft_lower.append(x - softMargin)
-                y_soft_lower.append(y_points[i] - softMargin)
-        plt.plot(x_soft_upper,y_soft_upper, linestyle=':', color='grey', label='Margin')
-        plt.plot(x_soft_lower,y_soft_lower, linestyle=':', color='grey')
+                if wNum == 0:
+                    upper_bounds.append(x + softMargin)
+                    lower_bounds.append(x - softMargin)
+                elif wNum == 1:
+                    upper_bounds.append(y_points[i] + softMargin)
+                    lower_bounds.append(y_points[i] - softMargin)
+            soft_upper.append(upper_bounds)
+            soft_lower.append(lower_bounds)
+
+        plt.plot(soft_upper[0],soft_upper[1], linestyle=':', color='grey', label='Margin')
+        plt.plot(soft_lower[0],soft_lower[1], linestyle=':', color='grey')
 
     def calculateSupportVectors(self):
         self.supportVectors = []
-        for i,constraint in enumerate(self.optimals['constraints']):
+        for i,constraint in enumerate(self.optimals['constraints'][:len(self.fullSet)]):
             for dual in constraint.dual_value:
-                if math.isclose(dual,0, abs_tol=0.1): # TODO Fix support vector tolerance
-                    self.supportVectors.append((self.fullSetX[i],self.fullSetY[i]))
+                print("Dual",[i], "-", dual, dual+self.optimals['constraints'][i+400].dual_value)
+                if dual >= 0 and dual <= 1: # TODO Fix support vector tolerance
+                    self.supportVectors.append((self.fullSetX[i], self.fullSetY[i]))
         return self.supportVectors
 
     def plotSupportVectors(self):
@@ -107,30 +119,39 @@ class SVM():
         x_sv, y_sv = numpy.asarray(self.supportVectors).T
         plt.plot(x_sv, y_sv, '+', color='cyan', label='Support Vector')
 
+    def dot(self, w, cartisian):
+        products = list()
+        for i in range(self.dimensions):
+            products.append(cp.multiply(w[i], cartisian[i]))
+        return cp.sum(products)
+
     def optimization(self):
         # Setup SVM Optimization Problem
         w = cp.Variable((self.dimensions,1))
         b = cp.Variable()
-        epsi = cp.Variable((len(self.fullSetX),1))
+        epsi = cp.Variable((len(self.fullSet),1))
         half = cp.Constant(1/2)
-        reg = cp.square(cp.norm(w,2))
+        reg = cp.square(cp.pnorm(w,2))
         c = cp.Constant(self.constantC)
-        loss = cp.sum(cp.pos(epsi))
+        loss = cp.norm(epsi,1)
 
         # Setup Optimization Constraints
         constraints = []
-        for i in range(len(self.fullSetX)):
-            constraints += [self.fullSetY[i] * (w * self.fullSetX[i] + b) >= 1 - epsi[i]]
+        numPoints = len(self.fullSet)
+        for i in range(numPoints):
+            constraints += [self.labels[i] * (self.dot(w, self.fullSet[i]) + b) >= 1 - epsi[i]] # TODO This should also be w DOT x
+        for i in range(numPoints):
+            constraints += [epsi[i]>=0]
 
         # Solve Problem 
-        prob = cp.Problem(cp.Minimize(half*reg + c * loss), constraints)
+        prob = cp.Problem(cp.Minimize(half * reg + c*loss), constraints)
         prob.solve()
 
         # Return Optimal w and b Values
         return {'w': w.value, 'b': b.value, 'constraints': constraints}
 
     def leaveOneOutError(self,numSupportVectors, numVectors):
-        return numSupportVectors/numVectors
+        return numSupportVectors/numVectors # Actually recompute by leaving one out, retraining, and seeing if each point goes back correctly
 
     def __str__(self):
         output = str()
@@ -139,7 +160,7 @@ class SVM():
             output += str(self.supportVectors)
             output += '\n'
             output += 'Leave One Out Error: '
-            output += str(self.leaveOneOutError(len(self.supportVectors), len(self.fullSetX)))
+            output += str(self.leaveOneOutError(len(self.supportVectors), len(self.fullSet))) # Must actually calculate
             output += '\n'
         output += 'Contant C: '
         output += str(self.constantC)
