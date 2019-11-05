@@ -1,5 +1,6 @@
 import randomSet as util
 import matplotlib.pyplot as plt
+import cvxpy as cvx
 import math
 import numpy
 
@@ -20,6 +21,8 @@ class Regression():
             self.class_a = set_1
             self.class_b = set_2
             self.labels = labels
+            ##############
+            self.full_set = full_set
     
     def plot(self):
         # Plot Points
@@ -35,9 +38,11 @@ class Regression():
         plt.show()
 
     def run(self, calculate_error=True, plot_now=True):
-        error = self.leave_one_out_error()
-        print("LOO Error",str(error) + "%")
-        self.plot()
+        if calculate_error:
+            error = self.leave_one_out_error()
+            print("LOO Error",str(error) + "%")
+        if plot_now:
+            self.plot()
 
     def classifier(self,X=None, Y=None):
         # Regression-Specific
@@ -46,14 +51,15 @@ class Regression():
     def plot_line(self,X,m,b, color='green'):
         y_values = []
         for x in X:
-            y_values.append(self.linear_prediction(x,m,b))
+            y_values.append(self.prediction(x,m,b))
         plt.plot(X, y_values, color=color)
 
-    def linear_prediction(self,x,m,b):
-        return m*x+b
+    def prediction(self,x,m,b):
+        # Regression-Specific
+        raise NotImplementedError 
 
     def classify(self,x,m,b, bound=0):
-        if self.linear_prediction(x,m,b) <= bound:
+        if self.prediction(x,m,b) <= bound:
             return -1
         else:
             return 1
@@ -108,7 +114,68 @@ class LinearRegression(Regression):
         # Return Linear Regression Coefficients
         return b1, b0
 
+    def prediction(self,x,m,b):
+        return m*x+b
+
+class LogisticRegression(Regression):
+    def __init__(self, X=None, Y=None, labels=None):
+        Regression.__init__(self,X=X, Y=Y, class_labels=labels)
+
+    def classifier(self,X=None, Y=None):
+        if type(X) != None and type(Y) != None:
+            X = self.X
+            Y = self.Y
+        w = self.__optimize__(X,Y, self.labels)
+        # x_space = numpy.logspace(min(X), min(Y), len(X))
+        # plt.plot(self.X, self.Y, '.', color='b')
+        # plt.plot(x_space, w, color='purple')
+        # plt.yscale('log')
+        # plt.show()
+
+    def prediction(self, w):
+        print("predict")
+        # (-w[0,0]*xp-w[2,0])/w[1,0]
+        # return m*x+b
+
+    def customMul(self, labelsArr, pointsArr):
+        prod = 0
+        for i in range(len(pointsArr)):
+            for a in pointsArr[i]:
+                prod+= a*labelsArr[i]
+        return prod
+
+    def __optimize__(self, X, Y, labels):
+        # Citation: https://www.cvxpy.org/examples/machine_learning/logistic_regression.html
+        n = len(X)
+        # beta = cp.Variable(n)
+        # lambd = cp.Parameter(nonneg=True)
+        # log_likelihood = cp.sum(
+        #     cp.multiply(self.Y, self.X @ beta) - cp.logistic(self.X @ beta)
+        # )
+        # problem = cp.Problem(cp.Maximize(log_likelihood/n - lambd * cp.norm(beta, 1)))
+        # problem.solve()
+
+        # Citation: http://niaohe.ise.illinois.edu/IE598_2016/logistic_regression_demo/
+        w = cvx.Variable(n)
+        lambd = cvx.Constant(1)
+        loss = cvx.sum(cvx.logistic(-cvx.multiply(Y, X*w))) + lambd/2 * cvx.sum_squares(w)
+        problem = cvx.Problem(cvx.Minimize(loss))
+        problem.solve() 
+        return w.value
+
+        # http://i-systems.github.io/HSE545/iAI/ML/topics/05_Classification/11_Logistic_Regression.pdf
+        # Xi = self.full_set
+        # w = cvx.Variable([3,1])
+        # # obj = cvx.Maximize(labels*Xi*w-cvx.sum(cvx.logistic(Xi*w)))
+        # obj = cvx.Maximize(self.customMul(labels,Xi)*w-cvx.sum(cvx.logistic(Xi*w)))
+        # prob = cvx.Problem(obj).solve()
+        # print(w)
+        # return w
+
 if __name__ == '__main__':
-    # plot_points(full_set, 'b')
     L = LinearRegression()
     L.run()
+
+    _log = LogisticRegression()
+    _log.classifier()
+    # _log.run(calculate_error=False, plot_now=False)

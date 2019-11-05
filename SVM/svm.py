@@ -5,7 +5,7 @@ import cvxpy as cp
 import randomSet as util
 
 class SVM():
-    def __init__(self, classA=False, classB=False, *, C=1, plotNow=False, printReport=False):
+    def __init__(self, classA=False, classB=False, *, C=1, plotNow=False, printReport=False, brute_loo=True, brute_mute=False):
         # Initialize Variables and Parameters
         self.optimized = False
         self.plotPrepared = False
@@ -13,6 +13,8 @@ class SVM():
         self.supportVectors = []
         self.margins = []
         self.printReport = printReport
+        self.brute = brute_loo
+        self.brute_mute = False
 
         # Generate Random Data or Accept Provided Sets
         if classA and classB:
@@ -36,8 +38,7 @@ class SVM():
                 self.plot()
 
     def optimize(self):
-        self.optimals = self.optimization()
-        # self.calculateSupportVectors()
+        self.optimals = self.train(self.fullSet, self.labels)
         self.optimized = True
 
     def plot(self):
@@ -67,6 +68,23 @@ class SVM():
         plt.plot(x2, y2, '.', color='r', label='Class B')
         plt.axis('equal')
 
+    def classify(self, x, w, b):
+        y = self.predict(x,w,b)
+        return self.sign(y)
+    
+    @staticmethod
+    def sign(number):
+        if number < 0:
+            return 1
+        if number >= 0:
+            return -1
+
+    def predict(self, x, w, b):
+        wTop = w[:(len(w)-1)]
+        wTop = wTop[0]
+        wBottom = w[len(w)-1]
+        return (-1 * b - sum(wTop*x))/wBottom
+
     def plotHyperplane(self):
         w = self.optimals['w']
         b = self.optimals['b']
@@ -75,17 +93,14 @@ class SVM():
         x_points = numpy.linspace(int(min(self.fullSetX)), int(max(self.fullSetX)), len(self.fullSet))
         y_points =[]
         for x in x_points:
-            wTop = w[:(len(w)-1)]
-            wTop = wTop[0]
-            wBottom = w[len(w)-1]
-            y_points.append((-1 * b - sum(wTop*x))/wBottom)
+            y_points.append(self.predict(x,w,b))
         plt.plot(x_points,y_points, color='purple', label='Classifier')
 
         # Soft Margins
         soft_upper = []
         soft_lower = []
         for wNum, wVal in enumerate(w):
-            softMargin = (1/wVal)
+            softMargin = (1/wVal)/2 #TODO Check if /2 is correct
             self.margins.append(softMargin)
             upper_bounds = []
             lower_bounds = []
@@ -106,18 +121,19 @@ class SVM():
         self.supportVectors = []
         for i,constraint in enumerate(self.optimals['constraints'][:len(self.fullSet)]):
             for dual in constraint.dual_value:
-                print("Dual",[i], "-", dual, dual+self.optimals['constraints'][i+400].dual_value)
-                if dual >= 0 and dual <= 1: # TODO Fix support vector tolerance
+                if not numpy.isclose(dual, 0) and dual >= 0:
                     self.supportVectors.append((self.fullSetX[i], self.fullSetY[i]))
         return self.supportVectors
 
     def plotSupportVectors(self):
-        if len(self.supportVectors):
-            self.supportVectors = self.supportVectors
-        else:
+        if len(self.supportVectors) < 1:
             self.calculateSupportVectors()
-        x_sv, y_sv = numpy.asarray(self.supportVectors).T
-        plt.plot(x_sv, y_sv, '+', color='cyan', label='Support Vector')
+
+        if len(self.supportVectors):
+            x_sv, y_sv = numpy.asarray(self.supportVectors).T
+            plt.plot(x_sv, y_sv, '+', color='cyan', label='Support Vector')
+        else:
+            print("No Support Vectors Found.")
 
     def dot(self, w, cartisian):
         products = list()
@@ -125,11 +141,11 @@ class SVM():
             products.append(cp.multiply(w[i], cartisian[i]))
         return cp.sum(products)
 
-    def optimization(self):
+    def train(self, full_set, labels):
         # Setup SVM Optimization Problem
         w = cp.Variable((self.dimensions,1))
         b = cp.Variable()
-        epsi = cp.Variable((len(self.fullSet),1))
+        epsi = cp.Variable((len(full_set),1))
         half = cp.Constant(1/2)
         reg = cp.square(cp.pnorm(w,2))
         c = cp.Constant(self.constantC)
@@ -137,9 +153,9 @@ class SVM():
 
         # Setup Optimization Constraints
         constraints = []
-        numPoints = len(self.fullSet)
+        numPoints = len(full_set)
         for i in range(numPoints):
-            constraints += [self.labels[i] * (self.dot(w, self.fullSet[i]) + b) >= 1 - epsi[i]] # TODO This should also be w DOT x
+            constraints += [labels[i] * (self.dot(w, full_set[i]) + b) >= 1 - epsi[i]]
         for i in range(numPoints):
             constraints += [epsi[i]>=0]
 
@@ -148,10 +164,40 @@ class SVM():
         prob.solve()
 
         # Return Optimal w and b Values
-        return {'w': w.value, 'b': b.value, 'constraints': constraints}
+        return {'w': w.value, 'b': b.value, 'constraints': constraints, 'epsi': epsi.value}
 
-    def leaveOneOutError(self,numSupportVectors, numVectors):
-        return numSupportVectors/numVectors # Actually recompute by leaving one out, retraining, and seeing if each point goes back correctly
+    def verify_leave_one_out_error(self,numSupportVectors, numVectors):
+        return 100*numSupportVectors/numVectors 
+
+    def leave_one_out_error(self):
+        print("Please Wait, Calculating Leave One Out Error...")
+        correct = 0
+        for i, pair in enumerate(self.fullSet):
+            if not self.brute_mute:
+                print("LOO Progress:",i+1,"/",len(self.fullSet))
+            x = pair[0]
+            known_label = self.labels[i]
+            known_x = self.fullSetX[i]
+            b = 0
+            m = 0
+            optimal = None
+            if i == 0:
+                # Begining
+                optimal = self.train(self.fullSet[1:], self.labels[1:])
+            elif i == len(self.fullSetX)-1:
+                # End
+                optimal = self.train(self.fullSet[:len(self.fullSetX)-1], self.labels[:len(self.fullSetX)-1])
+            else:
+                # Middle
+                optimal = self.train((list(self.fullSet[:i]) + list(self.fullSet[i+1:])),(list(self.labels[:i]) + list(self.labels[i+1:])))
+
+
+            if self.classify(x,optimal.get('w'),optimal.get('b')) == self.labels[i]:
+                correct += 1
+        
+        num_vectors = len(self.labels)
+        mistakes = num_vectors - correct
+        return 100*(mistakes/num_vectors)
 
     def __str__(self):
         output = str()
@@ -159,8 +205,12 @@ class SVM():
             output += 'Support Vectors: '
             output += str(self.supportVectors)
             output += '\n'
-            output += 'Leave One Out Error: '
-            output += str(self.leaveOneOutError(len(self.supportVectors), len(self.fullSet))) # Must actually calculate
+            if self.brute:
+                output += 'Leave One Out Error: '
+                output += str(self.leave_one_out_error()) + "%"
+                output += '\n'
+            output += 'Theoretical Leave One Out Error: '
+            output += str(self.verify_leave_one_out_error(len(self.supportVectors), len(self.fullSet))) + "%"
             output += '\n'
         output += 'Contant C: '
         output += str(self.constantC)
