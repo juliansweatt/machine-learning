@@ -18,4 +18,12 @@ def myPoints():
     randomSet2 = random2DGauss(mean2, covarianceMatrix)
     fullSet = combineSets(randomSet1, randomSet2)
     X, Y = fullSet.T
-    return randomSet1, randomSet2, X, Y
+
+    labels = []
+    for i in range(len(fullSet)):
+        lab = 0
+        if i < 200:
+            labels.append(-1)
+        else:
+            labels.append(1)
+    return randomSet1, randomSet2, X, Y, fullSet, labels

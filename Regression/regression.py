@@ -1,6 +1,6 @@
 import randomSet as util
 import matplotlib.pyplot as plt
-import cvxpy as cvx
+import cvxpy as cp
 import math
 import numpy
 
@@ -23,19 +23,10 @@ class Regression():
             self.labels = labels
             ##############
             self.full_set = full_set
-    
+
     def plot(self):
-        # Plot Points
-        if self.class_a.any() and self.class_b.any():
-            self.plot_points(self.class_a, 'b')
-            self.plot_points(self.class_b, 'r')
-        else:
-            self.plot_points(zip(self.X, self.Y), 'b')
-        
-        # Plot Regressions
-        slope, b = self.classifier()
-        self.plot_line(self.X, slope, b)
-        plt.show()
+        # Regression-Specific
+        raise NotImplementedError
 
     def run(self, calculate_error=True, plot_now=True):
         if calculate_error:
@@ -48,52 +39,61 @@ class Regression():
         # Regression-Specific
         raise NotImplementedError 
 
-    def plot_line(self,X,m,b, color='green'):
-        y_values = []
-        for x in X:
-            y_values.append(self.prediction(x,m,b))
-        plt.plot(X, y_values, color=color)
+    def plot_line(self,X,m,b, color='green', label=None):
+        # Regression-Specifc
+        raise NotImplementedError
 
     def prediction(self,x,m,b):
         # Regression-Specific
         raise NotImplementedError 
 
     def classify(self,x,m,b, bound=0):
-        if self.prediction(x,m,b) <= bound:
-            return -1
-        else:
-            return 1
+        # Regression-Specific
+        raise NotImplementedError
 
     def leave_one_out_error(self):
-        correct = 0
-        for i, x in enumerate(self.X):
-            known_label = self.labels[i]
-            known_x = self.X[i]
-            b = 0
-            m = 0
-            if i == 0:
-                # Begining
-                b,m = self.classifier(self.X[1:], self.Y[1:])
-            elif i == len(self.X)-1:
-                # End
-                b,m = self.classifier(self.X[:len(self.X)-1], self.Y[:len(self.X)-1])
-            else:
-                # Middle
-                b,m = self.classifier((list(self.X[:i]) + list(self.X[i+1:])),(list(self.Y[:i]) + list(self.Y[i+1:])))
+        # Regression-Specific
+        raise NotImplementedError
 
-
-            if self.classify(x,b,m) == self.labels[i]:
-                correct += 1
-        return 100*(1-(correct/len(self.labels))) # TODO Check Accuracy
-
-    def plot_points(self,set, colorCode):
+    def plot_points(self,set, colorCode, label):
         x1, y1 = set.T
-        plt.plot(x1, y1, '.', color=colorCode)
+        plt.plot(x1, y1, '.', color=colorCode, label=label)
         plt.axis('equal')
 
 class LinearRegression(Regression):
     def __init__(self,X=None, Y=None, labels=None):
         Regression.__init__(self,X=X,Y=Y,class_labels=labels)
+
+    def plot(self):
+        # Plot Points
+        if self.class_a.any() and self.class_b.any():
+            self.plot_points(self.class_a, 'b', label='Class A')
+            self.plot_points(self.class_b, 'r', label='ClassB')
+        else:
+            self.plot_points(zip(self.X, self.Y), 'b', label="Full Set")
+        
+        # Plot Regressions
+        slope, b = self.classifier()
+        self.plot_line(self.X, slope, b, color='grey', label="Regression")
+        self.plot_line(self.X, -slope, b, label="Classifier")
+
+        # Setup Plot
+        plt.title('Regression')
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+        plt.tight_layout(pad=2)
+        plt.show()
+
+    def plot_line(self,X,m,b, color='green', label=None):
+        y_values = []
+        for x in X:
+            y_values.append(self.prediction(x,m,b))
+        plt.plot(X, y_values, color=color, label=label)
+
+    def classify(self,x,m,b, bound=0):
+        if self.prediction(x,m,b) <= bound:
+            return -1
+        else:
+            return 1
     
     def classifier(self,X=None, Y=None):
         if type(X) != None and type(Y) != None:
@@ -117,25 +117,78 @@ class LinearRegression(Regression):
     def prediction(self,x,m,b):
         return m*x+b
 
+    def leave_one_out_error(self):
+        correct = 0
+        for i, x in enumerate(self.X):
+            known_label = self.labels[i]
+            b = 0
+            m = 0
+            if i == 0:
+                # Begining
+                b,m = self.classifier(self.X[1:], self.Y[1:])
+            elif i == len(self.X)-1:
+                # End
+                b,m = self.classifier(self.X[:len(self.X)-1], self.Y[:len(self.X)-1])
+            else:
+                # Middle
+                b,m = self.classifier((list(self.X[:i]) + list(self.X[i+1:])),(list(self.Y[:i]) + list(self.Y[i+1:])))
+
+            if self.classify(x,b,m) == known_label:
+                correct += 1
+        return 100*(1-(correct/len(self.labels)))
+
 class LogisticRegression(Regression):
     def __init__(self, X=None, Y=None, labels=None):
         Regression.__init__(self,X=X, Y=Y, class_labels=labels)
+        set_1, set_2, X_values, Y_values, full_set, labels = util.myPointsLog()
+        self.X = X_values
+        self.Y = Y_values
+        self.class_a = set_1
+        self.class_b = set_2
+        self.labels = labels
+        ##############
+        self.full_set = full_set
+
+    def plot(self):
+        # Plot Points
+        if self.class_a.any() and self.class_b.any():
+            self.plot_points(self.class_a, 'b', label='Class A')
+            self.plot_points(self.class_b, 'r', label='ClassB')
+        else:
+            self.plot_points(zip(self.X, self.Y), 'b', label="Full Set")
+        
+        # Plot Regressions
+        beta = self.classifier()
+        self.plot_line(beta,min(self.X), max(self.X), color='grey', label="Regression")
+
+        # Setup Plot
+        plt.title('Logistic Regression')
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+        plt.tight_layout(pad=2)
+        plt.show()
+
+    def plot_line(self,beta, domain_min, domain_max, points=1000, color='green', label=None):
+        y_values = []
+        X = numpy.linspace(domain_min, domain_max, points)
+        for x in X:
+            y_values.append(self.prediction(x,beta))
+        plt.plot(X, y_values, color=color, label=label)
+
+    def classify(self,x,beta, bound=0):
+        if self.prediction(x,beta) <= bound:
+            return 1
+        else:
+            return 0
 
     def classifier(self,X=None, Y=None):
         if type(X) != None and type(Y) != None:
             X = self.X
             Y = self.Y
-        w = self.__optimize__(X,Y, self.labels)
-        # x_space = numpy.logspace(min(X), min(Y), len(X))
-        # plt.plot(self.X, self.Y, '.', color='b')
-        # plt.plot(x_space, w, color='purple')
-        # plt.yscale('log')
-        # plt.show()
+        beta = self.__optimize__(self.full_set, self.labels)
+        return beta
 
-    def prediction(self, w):
-        print("predict")
-        # (-w[0,0]*xp-w[2,0])/w[1,0]
-        # return m*x+b
+    def prediction(self, x, beta):
+        return ((-1 * beta[0] * x)/beta[1])
 
     def customMul(self, labelsArr, pointsArr):
         prod = 0
@@ -144,38 +197,43 @@ class LogisticRegression(Regression):
                 prod+= a*labelsArr[i]
         return prod
 
-    def __optimize__(self, X, Y, labels):
+    def __optimize__(self, full_set, labels):
         # Citation: https://www.cvxpy.org/examples/machine_learning/logistic_regression.html
-        n = len(X)
-        # beta = cp.Variable(n)
-        # lambd = cp.Parameter(nonneg=True)
-        # log_likelihood = cp.sum(
-        #     cp.multiply(self.Y, self.X @ beta) - cp.logistic(self.X @ beta)
-        # )
-        # problem = cp.Problem(cp.Maximize(log_likelihood/n - lambd * cp.norm(beta, 1)))
-        # problem.solve()
+        n = 2
+        beta = cp.Variable(n)
+        log_likelihood = cp.sum(cp.multiply(labels, full_set @ beta) - cp.logistic(full_set @ beta))
+        problem = cp.Problem(cp.Maximize(log_likelihood))
+        problem.solve()
 
-        # Citation: http://niaohe.ise.illinois.edu/IE598_2016/logistic_regression_demo/
-        w = cvx.Variable(n)
-        lambd = cvx.Constant(1)
-        loss = cvx.sum(cvx.logistic(-cvx.multiply(Y, X*w))) + lambd/2 * cvx.sum_squares(w)
-        problem = cvx.Problem(cvx.Minimize(loss))
-        problem.solve() 
-        return w.value
+        return beta.value
 
-        # http://i-systems.github.io/HSE545/iAI/ML/topics/05_Classification/11_Logistic_Regression.pdf
-        # Xi = self.full_set
-        # w = cvx.Variable([3,1])
-        # # obj = cvx.Maximize(labels*Xi*w-cvx.sum(cvx.logistic(Xi*w)))
-        # obj = cvx.Maximize(self.customMul(labels,Xi)*w-cvx.sum(cvx.logistic(Xi*w)))
-        # prob = cvx.Problem(obj).solve()
-        # print(w)
-        # return w
+    def leave_one_out_error(self):
+        correct = 0
+        numPoints = len(self.full_set)
+        for i, x in enumerate(self.X):
+            known_label = self.labels[i]
+            beta = 0
+            if i == 0:
+                # Begining
+                beta = self.__optimize__(self.full_set[1:], self.labels[1:])
+            elif i == numPoints-1:
+                # End
+                beta = self.__optimize__(self.full_set[:numPoints-1], self.labels[:numPoints-1])
+            else:
+                # Middle
+                beta = self.__optimize__((util.combineSets(self.full_set[:i],self.full_set[i+1:])), util.combineSets(self.labels[:i], self.labels[i+1:]))
+
+            if self.classify(x,beta) == known_label:
+                correct += 1
+        
+        incorrect = numPoints-correct
+        return 100*(incorrect/numPoints)
 
 if __name__ == '__main__':
-    L = LinearRegression()
-    L.run()
+    # L = LinearRegression()
+    # L.run()
 
     _log = LogisticRegression()
     _log.classifier()
+    _log.run()
     # _log.run(calculate_error=False, plot_now=False)
