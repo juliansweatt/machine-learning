@@ -51,16 +51,17 @@ class SVM():
     def preparePlot(self):
         if self.optimized and not self.plotPrepared:
             # Plot Each Portion
-            self.plotPoints()
             self.plotHyperplane()
             self.plotSupportVectors()
+            self.plotPoints()
 
             # Setup Plot
             plt.title('Support Vector Machine')
             plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
             plt.tight_layout(pad=2)
         else:
-            print("SVM must be optimized to plot")
+            if not self.optimized:
+                print("SVM must be optimized to plot")
         self.plotPrepared = True
 
     def plotPoints(self):
@@ -128,7 +129,7 @@ class SVM():
 
         if len(self.supportVectors):
             x_sv, y_sv = numpy.asarray(self.supportVectors).T
-            plt.plot(x_sv, y_sv, '+', color='cyan', label='Support Vector')
+            plt.plot(x_sv, y_sv, 'o', color='orange', label='Support Vector')
         else:
             print("No Support Vectors Found.")
 
@@ -168,9 +169,6 @@ class SVM():
                 print("LOO Progress:",i+1,"/",len(self.fullSet))
             x = pair[0]
             known_label = self.labels[i]
-            known_x = self.fullSetX[i]
-            b = 0
-            m = 0
             optimal = None
             if i == 0:
                 # Begining
@@ -182,8 +180,7 @@ class SVM():
                 # Middle
                 optimal = self.train((list(self.fullSet[:i]) + list(self.fullSet[i+1:])),(list(self.labels[:i]) + list(self.labels[i+1:])))
 
-
-            if self.classify(x,optimal.get('w'),optimal.get('b')) == self.labels[i]:
+            if self.classify(x,optimal.get('w'),optimal.get('b')) == known_label:
                 correct += 1
         
         num_vectors = len(self.labels)
@@ -196,7 +193,7 @@ class SVM():
             output += 'Leave One Out Error: '
             output += str(self.leave_one_out_error()) + "%"
             output += '\n'
-        output += 'Theoretical Leave One Out Error: '
+        output += 'Support Vector Ratio: '
         output += str(self.verify_leave_one_out_error(len(self.supportVectors), len(self.fullSet))) + "%"
         output += '\n'
         output += 'Constant C: '
