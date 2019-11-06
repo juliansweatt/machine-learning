@@ -11,7 +11,7 @@ class SVM():
         self.plotPrepared = False
         self.constantC = C
         self.supportVectors = []
-        self.margins = []
+        self.margin = 0
         self.printReport = printReport
         self.brute = brute_loo
         self.brute_mute = False
@@ -85,6 +85,15 @@ class SVM():
         wBottom = w[len(w)-1]
         return (-1 * b - sum(wTop*x))/wBottom
 
+    @staticmethod
+    def norm(U):
+        normalization = 0.0
+        for u in U:
+            normalization += u**2
+        normalization = math.sqrt(normalization)
+        return normalization
+
+
     def plotHyperplane(self):
         w = self.optimals['w']
         b = self.optimals['b']
@@ -96,21 +105,23 @@ class SVM():
             y_points.append(self.predict(x,w,b))
         plt.plot(x_points,y_points, color='purple', label='Classifier')
 
-        # Soft Margins
+        # Soft Margin
+        self.margin = (1/self.norm(w))
+
+        # Plot Margins (Offset Based)
         soft_upper = []
         soft_lower = []
         for wNum, wVal in enumerate(w):
-            softMargin = (1/wVal)/2 #TODO Check if /2 is correct
-            self.margins.append(softMargin)
+            offset_distance = (1/wVal)/2
             upper_bounds = []
             lower_bounds = []
             for i,x in enumerate(x_points):
                 if wNum == 0:
-                    upper_bounds.append(x + softMargin)
-                    lower_bounds.append(x - softMargin)
+                    upper_bounds.append(x + offset_distance)
+                    lower_bounds.append(x - offset_distance)
                 elif wNum == 1:
-                    upper_bounds.append(y_points[i] + softMargin)
-                    lower_bounds.append(y_points[i] - softMargin)
+                    upper_bounds.append(y_points[i] + offset_distance)
+                    lower_bounds.append(y_points[i] - offset_distance)
             soft_upper.append(upper_bounds)
             soft_lower.append(lower_bounds)
 
@@ -212,12 +223,9 @@ class SVM():
             output += 'Theoretical Leave One Out Error: '
             output += str(self.verify_leave_one_out_error(len(self.supportVectors), len(self.fullSet))) + "%"
             output += '\n'
-        output += 'Contant C: '
+        output += 'Constant C: '
         output += str(self.constantC)
         output += '\n'
-        if len(self.margins)>0:
-            output += 'Margins: '
-            for margin in self.margins:
-                output += str(margin[0])
-                output += ' '
+        output += 'Margin: '
+        output += str(self.margin)
         return output
