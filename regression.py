@@ -1,4 +1,4 @@
-import randomSet as util
+from common import Util, RandomData
 import matplotlib.pyplot as plt
 import cvxpy as cp
 import math
@@ -15,18 +15,13 @@ class Regression():
             self.class_b = None
         else:
             # Generate Points
-            set_1, set_2, X_values, Y_values, full_set, labels = util.myPoints()
+            set_1, set_2, X_values, Y_values, full_set, labels = RandomData.randomCartisian()
             self.X = X_values
             self.Y = Y_values
             self.class_a = set_1
             self.class_b = set_2
             self.labels = labels
-            ##############
             self.full_set = full_set
-
-    def plot(self):
-        # Regression-Specific
-        raise NotImplementedError
 
     def run(self, calculate_error=True, plot_now=True):
         if calculate_error:
@@ -34,6 +29,15 @@ class Regression():
             print("LOO Error",str(error) + "%")
         if plot_now:
             self.plot()
+
+    def plot_points(self,set, colorCode, label):
+        x1, y1 = set.T
+        plt.plot(x1, y1, '.', color=colorCode, label=label)
+        plt.axis('equal')
+
+    def plot(self):
+        # Regression-Specific
+        raise NotImplementedError
 
     def classifier(self,X=None, Y=None):
         # Regression-Specific
@@ -54,11 +58,6 @@ class Regression():
     def leave_one_out_error(self):
         # Regression-Specific
         raise NotImplementedError
-
-    def plot_points(self,set, colorCode, label):
-        x1, y1 = set.T
-        plt.plot(x1, y1, '.', color=colorCode, label=label)
-        plt.axis('equal')
 
 class LinearRegression(Regression):
     def __init__(self,X=None, Y=None, labels=None):
@@ -140,7 +139,7 @@ class LinearRegression(Regression):
 class LogisticRegression(Regression):
     def __init__(self, X=None, Y=None, labels=None):
         Regression.__init__(self,X=X, Y=Y, class_labels=labels)
-        set_1, set_2, X_values, Y_values, full_set, labels = util.myPointsLog()
+        set_1, set_2, X_values, Y_values, full_set, labels = RandomData.randomLog()
         self.X = X_values
         self.Y = Y_values
         self.class_a = set_1
@@ -221,7 +220,7 @@ class LogisticRegression(Regression):
                 beta = self.__optimize__(self.full_set[:numPoints-1], self.labels[:numPoints-1])
             else:
                 # Middle
-                beta = self.__optimize__((util.combineSets(self.full_set[:i],self.full_set[i+1:])), util.combineSets(self.labels[:i], self.labels[i+1:]))
+                beta = self.__optimize__((Util.combineSets(self.full_set[:i],self.full_set[i+1:])), Util.combineSets(self.labels[:i], self.labels[i+1:]))
 
             if self.classify(x,beta) == known_label:
                 correct += 1

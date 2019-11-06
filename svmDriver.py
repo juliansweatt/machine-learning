@@ -7,7 +7,7 @@ import argparse
 def parseArguments():
     parser = argparse.ArgumentParser()
     argparse.ArgumentParser(description="Generate a Sequence Vector Machine (SVM).")
-    parser.add_argument("--c", type=int, help="Set a constant C for the SVM")
+    parser.add_argument("--c", help="Set a constant C for the SVM")
     parser.add_argument("--noPlot", help="Do not open a graphical representation of the SVM.", action="store_true")
     parser.add_argument("--printReport", help="Print report of basic SVM data.", action="store_true")
     parser.add_argument("--brute", help="If printing report, calculate LOO error by retraining. Will increase run time significantly.", action="store_true")

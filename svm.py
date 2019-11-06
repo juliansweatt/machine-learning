@@ -2,7 +2,7 @@ import numpy
 import math
 import matplotlib.pyplot as plt
 import cvxpy as cp
-import randomSet as util
+from common import Util, RandomData
 
 class SVM():
     def __init__(self, classA=False, classB=False, *, C=1, plotNow=False, printReport=False, brute_loo=True, brute_mute=False):
@@ -20,10 +20,10 @@ class SVM():
         if classA and classB:
             self.classA = classA
             self.classB = classB
-            self.fullSet = util.combineSets(self.classA, self.classB)
+            self.fullSet = Util.combineSets(self.classA, self.classB)
             self.fullSetX, self.fullSetY = self.fullSet.T
         else:
-            self.classA, self.classB, self.fullSetX, self.fullSetY, self.fullSet, self.labels = util.myPoints()
+            self.classA, self.classB, self.fullSetX, self.fullSetY, self.fullSet, self.labels = RandomData.randomCartisian()
 
         # Dimension of Class Data
         self.dimensions = len(self.classA[len(self.classA)-1])
