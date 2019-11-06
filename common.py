@@ -1,56 +1,74 @@
 import numpy.random
+import cvxpy as cp
+import math
 
 class Util():
     @staticmethod
     def combineSets(a,b):
         return numpy.concatenate((a,b), axis=0)
 
+    @staticmethod
+    def dot(w, cartisian, dimensions=2):
+        products = list()
+        for i in range(dimensions):
+            products.append(cp.multiply(w[i], cartisian[i]))
+        return cp.sum(products)
+
+    @staticmethod
+    def norm(U):
+        normalization = 0.0
+        for u in U:
+            normalization += u**2
+        normalization = math.sqrt(normalization)
+        return normalization
+
+    @staticmethod
+    def sign(number):
+        if number < 0:
+            return 1
+        if number >= 0:
+            return -1
+
 class RandomData():
     @staticmethod
-    def __random2DGauss__(mean, covMatrix, size=200):
+    def __random_gauss__(mean, covMatrix, size=200):
         numpy.random.seed(seed=4789)
         return numpy.random.multivariate_normal(mean, covMatrix, size)
-
-    @staticmethod
-    def randomCartisian(size=200):
-        mean1 = (-1, -1)
-        mean2 = (1, 1)
-        covarianceMatrix = [
-            [1,0],
-            [0,1]
-        ]
-        class_a = RandomData.__random2DGauss__(mean1, covarianceMatrix, size)
-        class_b = RandomData.__random2DGauss__(mean2, covarianceMatrix, size)
-        fullSet = Util.combineSets(class_a, class_b)
-        X, Y = fullSet.T
-
-        labels = []
-        for i in range(len(fullSet)):
-            lab = 0
-            if i < 200:
-                labels.append(-1)
-            else:
-                labels.append(1)
-        return class_a, class_b, X, Y, fullSet, labels
     
     @staticmethod
-    def randomLog(size=200):
+    def random_data(size=200):
         mean1 = (-1, -1)
         mean2 = (1, 1)
-        covarianceMatrix = [
+        covariance = [
             [1,0],
             [0,1]
         ]
-        randomSet1 = RandomData.__random2DGauss__(mean1, covarianceMatrix, size)
-        randomSet2 = RandomData.__random2DGauss__(mean2, covarianceMatrix, size)
+        randomSet1 = RandomData.__random_gauss__(mean1, covariance, size)
+        randomSet2 = RandomData.__random_gauss__(mean2, covariance, size)
         fullSet = Util.combineSets(randomSet1, randomSet2)
         X, Y = fullSet.T
+        return randomSet1, randomSet2, X, Y, fullSet
 
+    @staticmethod
+    def log_labels(size=400):
         labels = []
-        for i in range(len(fullSet)):
+        mid_point = size / 2
+        for i in range(size):
             lab = 0
-            if i < 200:
+            if i < mid_point:
                 labels.append(0)
             else:
                 labels.append(1)
-        return randomSet1, randomSet2, X, Y, fullSet, labels
+        return labels
+
+    @staticmethod
+    def linear_labels(size=400):
+        labels = []
+        mid_point = size / 2
+        for i in range(size):
+            lab = 0
+            if i < mid_point:
+                labels.append(-1)
+            else:
+                labels.append(1)
+        return labels

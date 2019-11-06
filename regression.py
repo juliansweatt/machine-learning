@@ -15,7 +15,8 @@ class Regression():
             self.class_b = None
         else:
             # Generate Points
-            set_1, set_2, X_values, Y_values, full_set, labels = RandomData.randomCartisian()
+            set_1, set_2, X_values, Y_values, full_set = RandomData.random_data()
+            labels = RandomData.linear_labels()
             self.X = X_values
             self.Y = Y_values
             self.class_a = set_1
@@ -60,8 +61,9 @@ class Regression():
         raise NotImplementedError
 
 class LinearRegression(Regression):
-    def __init__(self,X=None, Y=None, labels=None):
+    def __init__(self,X=None, Y=None, labels=None, calculate_error=False, plot_now=False):
         Regression.__init__(self,X=X,Y=Y,class_labels=labels)
+        self.run(plot_now=plot_now,calculate_error=calculate_error)
 
     def plot(self):
         # Plot Points
@@ -73,8 +75,8 @@ class LinearRegression(Regression):
         
         # Plot Regressions
         slope, b = self.classifier()
-        self.plot_line(self.X, slope, b, color='grey', label="Regression")
-        self.plot_line(self.X, -slope, b, label="Classifier")
+        self.plot_line(self.X, slope, b, color='grey', label="Traditional Regression")
+        self.plot_line(self.X, -slope, b, label="Linear Classifier")
 
         # Setup Plot
         plt.title('Regression')
@@ -137,16 +139,18 @@ class LinearRegression(Regression):
         return 100*(1-(correct/len(self.labels)))
 
 class LogisticRegression(Regression):
-    def __init__(self, X=None, Y=None, labels=None):
+    def __init__(self, X=None, Y=None, labels=None, calculate_error=False, plot_now=False):
         Regression.__init__(self,X=X, Y=Y, class_labels=labels)
-        set_1, set_2, X_values, Y_values, full_set, labels = RandomData.randomLog()
+        set_1, set_2, X_values, Y_values, full_set = RandomData.random_data()
+        labels = RandomData.log_labels()
         self.X = X_values
         self.Y = Y_values
         self.class_a = set_1
         self.class_b = set_2
         self.labels = labels
-        ##############
         self.full_set = full_set
+
+        self.run(plot_now=plot_now, calculate_error=calculate_error)
 
     def plot(self):
         # Plot Points
@@ -210,6 +214,7 @@ class LogisticRegression(Regression):
         correct = 0
         numPoints = len(self.full_set)
         for i, x in enumerate(self.X):
+            print("LOO Progress:", i+1, "/", numPoints)
             known_label = self.labels[i]
             beta = 0
             if i == 0:
@@ -227,12 +232,3 @@ class LogisticRegression(Regression):
         
         incorrect = numPoints-correct
         return 100*(incorrect/numPoints)
-
-if __name__ == '__main__':
-    # L = LinearRegression()
-    # L.run()
-
-    _log = LogisticRegression()
-    _log.classifier()
-    _log.run()
-    # _log.run(calculate_error=False, plot_now=False)

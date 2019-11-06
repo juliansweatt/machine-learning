@@ -23,7 +23,8 @@ class SVM():
             self.fullSet = Util.combineSets(self.classA, self.classB)
             self.fullSetX, self.fullSetY = self.fullSet.T
         else:
-            self.classA, self.classB, self.fullSetX, self.fullSetY, self.fullSet, self.labels = RandomData.randomCartisian()
+            self.classA, self.classB, self.fullSetX, self.fullSetY, self.fullSet = RandomData.random_data()
+            self.labels = RandomData.linear_labels()
 
         # Dimension of Class Data
         self.dimensions = len(self.classA[len(self.classA)-1])
@@ -31,11 +32,12 @@ class SVM():
         # Optimize and Plot or Report if Needed
         if plotNow or printReport:
             self.optimize()
+            if plotNow:
+                print("Graphing SVM, Report Will Generate After Graph Is Closed If Requested.")
+                self.plot()
             if printReport:
                 self.preparePlot()
                 print(self)
-            if plotNow:
-                self.plot()
 
     def optimize(self):
         self.optimals = self.train(self.fullSet, self.labels)
@@ -70,29 +72,13 @@ class SVM():
 
     def classify(self, x, w, b):
         y = self.predict(x,w,b)
-        return self.sign(y)
-    
-    @staticmethod
-    def sign(number):
-        if number < 0:
-            return 1
-        if number >= 0:
-            return -1
+        return Util.sign(y)
 
     def predict(self, x, w, b):
         wTop = w[:(len(w)-1)]
         wTop = wTop[0]
         wBottom = w[len(w)-1]
         return (-1 * b - sum(wTop*x))/wBottom
-
-    @staticmethod
-    def norm(U):
-        normalization = 0.0
-        for u in U:
-            normalization += u**2
-        normalization = math.sqrt(normalization)
-        return normalization
-
 
     def plotHyperplane(self):
         w = self.optimals['w']
@@ -106,7 +92,7 @@ class SVM():
         plt.plot(x_points,y_points, color='purple', label='Classifier')
 
         # Soft Margin
-        self.margin = (1/self.norm(w))
+        self.margin = (1/Util.norm(w))
 
         # Plot Margins (Offset Based)
         soft_upper = []
@@ -146,12 +132,6 @@ class SVM():
         else:
             print("No Support Vectors Found.")
 
-    def dot(self, w, cartisian):
-        products = list()
-        for i in range(self.dimensions):
-            products.append(cp.multiply(w[i], cartisian[i]))
-        return cp.sum(products)
-
     def train(self, full_set, labels):
         # Setup SVM Optimization Problem
         w = cp.Variable((self.dimensions,1))
@@ -166,7 +146,7 @@ class SVM():
         constraints = []
         numPoints = len(full_set)
         for i in range(numPoints):
-            constraints += [labels[i] * (self.dot(w, full_set[i]) + b) >= 1 - epsi[i]]
+            constraints += [labels[i] * (Util.dot(w, full_set[i]) + b) >= 1 - epsi[i]]
         for i in range(numPoints):
             constraints += [epsi[i]>=0]
 
@@ -212,17 +192,13 @@ class SVM():
 
     def __str__(self):
         output = str()
-        if len(self.supportVectors)>0:
-            output += 'Support Vectors: '
-            output += str(self.supportVectors)
+        if self.brute:
+            output += 'Leave One Out Error: '
+            output += str(self.leave_one_out_error()) + "%"
             output += '\n'
-            if self.brute:
-                output += 'Leave One Out Error: '
-                output += str(self.leave_one_out_error()) + "%"
-                output += '\n'
-            output += 'Theoretical Leave One Out Error: '
-            output += str(self.verify_leave_one_out_error(len(self.supportVectors), len(self.fullSet))) + "%"
-            output += '\n'
+        output += 'Theoretical Leave One Out Error: '
+        output += str(self.verify_leave_one_out_error(len(self.supportVectors), len(self.fullSet))) + "%"
+        output += '\n'
         output += 'Constant C: '
         output += str(self.constantC)
         output += '\n'
